@@ -1,3 +1,6 @@
+/** Seeded in supabase/migrations/20250623180001_seed_companies.sql */
+export const PSVIEW_SEED_COMPANY_ID = "dad84ee0-f465-49ce-a89e-4af554134104";
+
 export const PSVIEW_DEMO = {
   name: "PSVIEW",
   one_liner:

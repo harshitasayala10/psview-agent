@@ -8,7 +8,7 @@
 | 1 — Database schema | **Done** |
 | 2 — `synthesize-persona` | **Done** |
 | 3 — `agent-turn` | **Done** |
-| 4 — React UI | Pending |
+| 4 — React UI | **Done** |
 | 5 — Deploy | Pending |
 | 6 — Polish | Pending |
 | 7 — README + submit | Pending |

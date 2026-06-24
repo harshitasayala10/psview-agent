@@ -13,13 +13,15 @@ MERIDIAN_ID="${MERIDIAN_COMPANY_ID:-47e9e500-4adc-44b1-9177-0e8855632cda}"
 call_persona() {
   local name="$1"
   local company_id="$2"
+  local force="${3:-false}"
   echo ""
-  echo "=== $name ($company_id) ==="
+  echo "=== $name ($company_id) force=$force ==="
   curl -s -X POST "$PROJECT_URL/functions/v1/synthesize-persona" \
     -H "Authorization: Bearer $ANON_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"company_id\":\"$company_id\"}" | python3 -m json.tool
+    -d "{\"company_id\":\"$company_id\",\"force\":$force}" | python3 -m json.tool
 }
 
-call_persona "PSVIEW" "$PSVIEW_ID"
-call_persona "Meridian Capital" "$MERIDIAN_ID"
+call_persona "PSVIEW (reuse)" "$PSVIEW_ID" false
+call_persona "PSVIEW (force new)" "$PSVIEW_ID" true
+call_persona "Meridian Capital" "$MERIDIAN_ID" false

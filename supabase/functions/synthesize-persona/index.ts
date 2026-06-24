@@ -33,7 +33,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { company_id } = await req.json();
+    const body = await req.json();
+    const company_id = body.company_id;
+    const force = body.force === true;
 
     if (!company_id || typeof company_id !== "string") {
       return errorResponse("company_id is required", 400);
@@ -52,6 +54,25 @@ Deno.serve(async (req) => {
 
     if (companyError || !company) {
       return errorResponse("Company not found", 404);
+    }
+
+    if (!force) {
+      const { data: existing } = await supabase
+        .from("agent_configs")
+        .select("id, persona, created_at")
+        .eq("company_id", company_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        return jsonResponse({
+          agent_config_id: existing.id,
+          persona: existing.persona,
+          created_at: existing.created_at,
+          reused: true,
+        });
+      }
     }
 
     const persona = await callClaudeJSON(
@@ -75,6 +96,7 @@ Deno.serve(async (req) => {
       agent_config_id: agentConfig.id,
       persona: agentConfig.persona,
       created_at: agentConfig.created_at,
+      reused: false,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";

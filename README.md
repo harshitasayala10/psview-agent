@@ -9,7 +9,14 @@ Every message is the output of an explicit Observe → Reason → Act → Update
 
 ---
 
-> **Status:** Phase 3 complete — `agent-turn` deployed and tested (opening, positive, skeptical, hostile). Next: Phase 4 (React UI). See [BUILD_PLAN.md](BUILD_PLAN.md) and [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+> **Status:** Phase 5 — deploying to Vercel. Click **Run demo** on the live site for a one-click walkthrough.
+
+## Quick start (live)
+
+1. Open the live URL
+2. Click **Run demo** (header or hero)
+3. Watch persona load, opening message generate, and Agent Brain populate
+4. Try a skeptical or hostile candidate reply
 
 ## Stack
 
@@ -40,6 +47,16 @@ supabase functions deploy synthesize-persona
 supabase functions deploy agent-turn
 supabase secrets set LLM_API_KEY=sk-ant-...
 ```
+
+Persona synthesis reuses the latest config per company by default; pass `force: true` to regenerate.
+
+## Deploy frontend (Vercel)
+
+Root directory: `frontend`
+
+Environment variables:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
 ## Build plan
 
