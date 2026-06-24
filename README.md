@@ -1,6 +1,6 @@
 # PSVIEW Agent — Autonomous Candidate Engagement Demo
 
-**Live:** TBD  
+**Live:** https://psview-agent-demo-two.vercel.app  
 **Repo:** https://github.com/harshitasayala10/psview-agent
 
 ## What makes it intelligent, not just an LLM call
@@ -9,7 +9,7 @@ Every message is the output of an explicit Observe → Reason → Act → Update
 
 ---
 
-> **Status:** Phase 5 — deploying to Vercel. Click **Run demo** on the live site for a one-click walkthrough.
+> **Status:** Phase 5 complete — live on Vercel. Click **Run demo** for a one-click walkthrough.
 
 ## Quick start (live)
 
