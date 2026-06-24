@@ -7,6 +7,8 @@
 
 An autonomous recruiting agent that configures itself from company context, then engages a simulated candidate through a multi-step reasoning loop. Feed it a company profile (or click **Run demo**), and it synthesizes a bespoke outreach persona, generates opening messages, and adapts strategy turn-by-turn based on candidate replies. Every response is preview-only — nothing is sent externally.
 
+**Message sequence:** The agent does not pre-script a fixed multi-message campaign. It runs an adaptive conversation — opening message plus reactive turns — choosing strategy per reply (pitch, handle objection, propose call, disqualify, etc.). Each message is generated when needed, not batch-planned upfront.
+
 ## What makes it intelligent, not just an LLM call
 
 Every message is the output of an explicit Observe → Reason → Act → Update loop: the agent turns each reply into structured signals, selects a strategy against its goal and self-authored persona, critiques its own draft, and updates a persistent candidate model before writing. The text is the last step, not the system.
@@ -54,23 +56,24 @@ sequenceDiagram
 
 ## Run it
 
-**Live (recommended):** Open the URL → click **Run demo** → try quick-reply chips (skeptical or hostile).
+**Live (recommended):**
 
-**Locally:**
+1. Open the URL → click **Run demo** (PSVIEW, one-click)
+2. Try quick-reply chips — skeptical or hostile replies show strategy changes in the Brain panel
+3. **Different persona:** click **Configure manually**, enter another company (e.g. **Meridian Capital** — global investment bank, formal tone, quant researcher profiles) → generate persona → compare agent name, voice, and hooks to PSVIEW
 
-```bash
-cd frontend && npm install && npm run dev
-```
+**Locally:** `cd frontend && npm install && npm run dev` (needs `frontend/.env.local` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`)
 
-Ensure `frontend/.env.local` has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+<details>
+<summary><strong>For developers</strong> — stack, database, edge functions, deploy</summary>
 
-## Stack
+### Stack
 
 - **Frontend:** React + TypeScript + Tailwind (Vite) → Vercel
 - **Backend:** Supabase Postgres + Edge Functions (Deno)
 - **LLM:** Claude Sonnet 4.6 (server-side only via `LLM_API_KEY` secret)
 
-## Database
+### Database
 
 ```bash
 supabase db push
@@ -78,7 +81,7 @@ supabase db push
 
 Tables: `companies`, `agent_configs`, `conversations`, `messages`
 
-## Edge Functions
+### Edge Functions
 
 ```bash
 supabase functions deploy synthesize-persona
@@ -88,7 +91,7 @@ supabase secrets set LLM_API_KEY=sk-ant-...
 
 Persona synthesis reuses the latest config per company by default; pass `force: true` to regenerate.
 
-## Deploy frontend (Vercel)
+### Deploy frontend (Vercel)
 
 Root directory: `frontend`
 
@@ -97,3 +100,5 @@ Environment variables:
 - `VITE_SUPABASE_ANON_KEY`
 
 Do **not** add `LLM_API_KEY` to Vercel — it stays in Supabase Edge Function secrets only.
+
+</details>
