@@ -33,3 +33,7 @@ npm-debug.log*
 
 # Plan docs (optional local notes)
 .cursor/
+IMPLEMENTATION_PLAN.md
+BUILD_PLAN.md
+SETUP.md
+DEPLOY.md
