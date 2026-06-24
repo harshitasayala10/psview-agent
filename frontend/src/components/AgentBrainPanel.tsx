@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { AgentTurnResult } from "../lib/api";
 import type { ConversationState } from "../lib/supabase";
 
@@ -7,6 +7,7 @@ type Props = {
   state: ConversationState | null;
   draftMessage: string | null;
   finalMessage: string | null;
+  interestDelta: number | null;
   loading: boolean;
 };
 
@@ -30,14 +31,20 @@ const STRATEGY_COLORS: Record<string, string> = {
 
 const LOOP_STEPS = ["Observe", "Reason", "Critique", "Update"];
 
+function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
 export default function AgentBrainPanel({
   reasoning,
   state,
   draftMessage,
   finalMessage,
+  interestDelta,
   loading,
 }: Props) {
   const [showDraft, setShowDraft] = useState(false);
+  const [interestBump, setInterestBump] = useState(false);
 
   const observation = reasoning?.observation as {
     sentiment?: string;
@@ -58,6 +65,21 @@ export default function AgentBrainPanel({
       : interest >= 31
         ? "from-amber-400 to-orange-400"
         : "from-red-400 to-rose-400";
+
+  const hasRevision =
+    draftMessage && finalMessage && draftMessage.trim() !== finalMessage.trim();
+  const wordDelta =
+    hasRevision && draftMessage && finalMessage
+      ? wordCount(finalMessage) - wordCount(draftMessage)
+      : null;
+
+  useEffect(() => {
+    if (interestDelta !== null && interestDelta !== 0) {
+      setInterestBump(true);
+      const t = setTimeout(() => setInterestBump(false), 500);
+      return () => clearTimeout(t);
+    }
+  }, [interest, interestDelta]);
 
   return (
     <section className="font-mono-brain flex h-full flex-col overflow-hidden rounded-2xl border border-emerald-500/15 bg-[#050810] shadow-[0_0_60px_rgba(16,185,129,0.08)]">
@@ -117,16 +139,23 @@ export default function AgentBrainPanel({
               ))}
             </div>
             <p className="text-xs leading-relaxed text-slate-500">
-              Internal reasoning appears here after each agent turn.
+              Generate an opening message to see the agent think.
+            </p>
+            <p className="mt-2 text-[10px] text-slate-600">
+              Observation → strategy → self-critique → state update
             </p>
           </div>
         )}
 
         {strategy === "disqualify" && (
-          <Banner variant="danger">Agent decided to end outreach</Banner>
+          <Banner variant="danger" pulse>
+            Agent decided to end outreach — disqualify strategy selected
+          </Banner>
         )}
         {strategy === "propose_call" && (
-          <Banner variant="success">Agent is moving to schedule a call</Banner>
+          <Banner variant="success" pulse>
+            Agent is moving to schedule a call
+          </Banner>
         )}
 
         {reasoning && (
@@ -194,23 +223,42 @@ export default function AgentBrainPanel({
                   <p className="max-h-28 overflow-y-auto text-[11px] leading-relaxed text-slate-500">
                     {summarizeCritique(critique)}
                   </p>
-                  {draftMessage && finalMessage && draftMessage !== finalMessage && (
+                  {hasRevision && draftMessage && finalMessage && (
                     <div>
-                      <button
-                        type="button"
-                        onClick={() => setShowDraft((s) => !s)}
-                        className="text-[10px] font-medium uppercase tracking-wider text-emerald-500 hover:text-emerald-400"
-                      >
-                        {showDraft ? "→ Revised" : "→ Draft"}
-                      </button>
-                      <pre className="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap rounded border border-white/5 bg-black/40 p-2 text-[10px] text-slate-400">
-                        {showDraft ? draftMessage : finalMessage}
-                      </pre>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowDraft((s) => !s)}
+                          className="text-[10px] font-medium uppercase tracking-wider text-emerald-500 hover:text-emerald-400"
+                        >
+                          {showDraft ? "View revised →" : "← View draft"}
+                        </button>
+                        {wordDelta !== null && wordDelta !== 0 && (
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${
+                              wordDelta < 0
+                                ? "bg-emerald-500/10 text-emerald-400"
+                                : "bg-amber-500/10 text-amber-400"
+                            }`}
+                          >
+                            {wordDelta > 0 ? "+" : ""}
+                            {wordDelta} words
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative mt-2 min-h-[4rem]">
+                        <pre
+                          key={showDraft ? "draft" : "final"}
+                          className="critique-crossfade max-h-24 overflow-y-auto whitespace-pre-wrap rounded border border-white/5 bg-black/40 p-2 text-[10px] text-slate-400"
+                        >
+                          {showDraft ? draftMessage : finalMessage}
+                        </pre>
+                      </div>
                     </div>
                   )}
-                  {draftMessage === finalMessage && (
-                    <span className="inline-block rounded bg-slate-800/50 px-2 py-0.5 text-[10px] text-slate-500">
-                      No revision needed
+                  {!hasRevision && draftMessage && finalMessage && (
+                    <span className="inline-flex items-center gap-1.5 rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
+                      <span>✓</span> No revision needed
                     </span>
                   )}
                 </div>
@@ -228,14 +276,30 @@ export default function AgentBrainPanel({
             <div className="flex-1">
               <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-500">
                 <span>Interest score</span>
-                <span className="font-display text-lg font-bold text-white">
-                  {interest}
-                  <span className="text-sm font-normal text-slate-500">/100</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  {interestDelta !== null && interestDelta !== 0 && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        interestDelta > 0
+                          ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-red-500/15 text-red-300"
+                      }`}
+                    >
+                      {interestDelta > 0 ? "+" : ""}
+                      {interestDelta} from last turn
+                    </span>
+                  )}
+                  <span
+                    className={`font-display text-lg font-bold text-white ${interestBump ? "interest-bump" : ""}`}
+                  >
+                    {interest}
+                    <span className="text-sm font-normal text-slate-500">/100</span>
+                  </span>
+                </div>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-900">
                 <div
-                  className={`h-full rounded-full bg-gradient-to-r ${interestGradient} shadow-[0_0_12px_rgba(16,185,129,0.4)] transition-all duration-700`}
+                  className={`h-full rounded-full bg-gradient-to-r ${interestGradient} shadow-[0_0_12px_rgba(16,185,129,0.4)] transition-all duration-700 ease-out`}
                   style={{ width: `${interest}%` }}
                 />
               </div>
@@ -313,17 +377,27 @@ function MiniList({ label, items }: { label: string; items: string[] }) {
 
 function Banner({
   variant,
+  pulse,
   children,
 }: {
   variant: "danger" | "success";
+  pulse?: boolean;
   children: ReactNode;
 }) {
   const styles =
     variant === "danger"
       ? "border-red-500/30 bg-red-950/40 text-red-300"
       : "border-emerald-500/30 bg-emerald-950/40 text-emerald-300";
+  const pulseClass =
+    pulse && variant === "danger"
+      ? "banner-pulse-danger"
+      : pulse
+        ? "banner-pulse-success"
+        : "";
   return (
-    <div className={`rounded-lg border px-3 py-2 text-[11px] font-medium ${styles}`}>
+    <div
+      className={`rounded-lg border px-3 py-2 text-[11px] font-medium ${styles} ${pulseClass}`}
+    >
       {children}
     </div>
   );

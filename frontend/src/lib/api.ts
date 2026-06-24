@@ -14,9 +14,13 @@ async function callFunction<T>(name: string, body: Record<string, unknown>): Pro
     body: JSON.stringify(body),
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error ?? `Function ${name} failed`);
+    const fallback =
+      res.status >= 500
+        ? "Server error — the agent may have timed out. Try again."
+        : `Function ${name} failed (${res.status})`;
+    throw new Error((data as { error?: string }).error ?? fallback);
   }
   return data as T;
 }

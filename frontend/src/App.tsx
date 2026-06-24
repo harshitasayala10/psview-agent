@@ -48,9 +48,21 @@ export default function App() {
   );
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [finalMessage, setFinalMessage] = useState<string | null>(null);
+  const [interestDelta, setInterestDelta] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [onRetry, setOnRetry] = useState<(() => void) | null>(null);
+
+  const fail = useCallback((message: string, retry?: () => void) => {
+    setError(message);
+    setOnRetry(retry ? () => retry : null);
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+    setOnRetry(null);
+  }, []);
 
   const resetConversation = useCallback(() => {
     setConversationId(null);
@@ -60,6 +72,7 @@ export default function App() {
     setConversationState(null);
     setDraftMessage(null);
     setFinalMessage(null);
+    setInterestDelta(null);
   }, []);
 
   const refreshMessages = useCallback(async (convId: string) => {
@@ -74,11 +87,17 @@ export default function App() {
   }, []);
 
   const applyTurnResult = useCallback((result: AgentTurnResult) => {
+    setConversationState((prev) => {
+      const prevScore = prev?.interest_score ?? 0;
+      setInterestDelta(result.state.interest_score - prevScore);
+      return result.state;
+    });
     setReasoning(result.reasoning);
-    setConversationState(result.state);
     setDraftMessage(result.draft_message);
     setFinalMessage(result.message);
   }, []);
+
+  const hasAgentMessage = messages.some((m) => m.role === "agent");
 
   const createConversation = useCallback(async (configId?: string) => {
     const id = configId ?? agentConfigId;
@@ -122,13 +141,13 @@ export default function App() {
     setPersona(null);
     setAgentConfigId(null);
     setPersonaReused(false);
-    setError(null);
+    clearError();
     document.getElementById("configure")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleRunDemo = async () => {
     setLoading(true);
-    setError(null);
+    clearError();
     setForm(PSVIEW_DEMO);
     setCompanyId(PSVIEW_SEED_COMPANY_ID);
     resetConversation();
@@ -151,7 +170,7 @@ export default function App() {
         document.getElementById("simulate")?.scrollIntoView({ behavior: "smooth" });
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to run demo");
+      fail(e instanceof Error ? e.message : "Failed to run demo", handleRunDemo);
     } finally {
       setLoading(false);
     }
@@ -159,7 +178,7 @@ export default function App() {
 
   const handleSubmitCompany = async () => {
     setLoading(true);
-    setError(null);
+    clearError();
     resetConversation();
     setPersona(null);
     setAgentConfigId(null);
@@ -188,7 +207,10 @@ export default function App() {
       const result = await synthesizePersona(cid);
       applyPersonaResult(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate persona");
+      fail(
+        e instanceof Error ? e.message : "Failed to generate persona",
+        handleSubmitCompany,
+      );
     } finally {
       setLoading(false);
     }
@@ -197,7 +219,7 @@ export default function App() {
   const handleRegeneratePersona = async () => {
     if (!companyId) return;
     setLoading(true);
-    setError(null);
+    clearError();
     resetConversation();
     setPersona(null);
     setAgentConfigId(null);
@@ -207,7 +229,10 @@ export default function App() {
       const result = await synthesizePersona(companyId, { force: true });
       applyPersonaResult(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to regenerate persona");
+      fail(
+        e instanceof Error ? e.message : "Failed to regenerate persona",
+        handleRegeneratePersona,
+      );
     } finally {
       setLoading(false);
     }
@@ -216,13 +241,16 @@ export default function App() {
   const handleStartConversation = async () => {
     if (!agentConfigId) return;
     setLoading(true);
-    setError(null);
+    clearError();
     resetConversation();
 
     try {
       await createConversation();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create conversation");
+      fail(
+        e instanceof Error ? e.message : "Failed to create conversation",
+        handleStartConversation,
+      );
     } finally {
       setLoading(false);
     }
@@ -231,29 +259,29 @@ export default function App() {
   const handleNewChat = async () => {
     if (!agentConfigId) return;
     setLoading(true);
-    setError(null);
+    clearError();
     resetConversation();
 
     try {
       await createConversation();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start new chat");
+      fail(e instanceof Error ? e.message : "Failed to start new chat", handleNewChat);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGenerateOpening = async () => {
-    if (!conversationId) return;
+    if (!conversationId || hasAgentMessage) return;
     setLoading(true);
-    setError(null);
+    clearError();
 
     try {
       const result = await runAgentTurn(conversationId);
       applyTurnResult(result);
       await refreshMessages(conversationId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Agent turn failed");
+      fail(e instanceof Error ? e.message : "Agent turn failed", handleGenerateOpening);
     } finally {
       setLoading(false);
     }
@@ -261,24 +289,30 @@ export default function App() {
 
   const handleSendReply = async () => {
     if (!conversationId || !candidateReply.trim()) return;
-    setLoading(true);
-    setError(null);
+    const convId = conversationId;
     const reply = candidateReply.trim();
     setCandidateReply("");
+    setLoading(true);
+    clearError();
 
-    try {
-      const result = await runAgentTurn(conversationId, reply);
-      applyTurnResult(result);
-      await refreshMessages(conversationId);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Agent turn failed");
-      setCandidateReply(reply);
-    } finally {
-      setLoading(false);
-    }
+    const attempt = async () => {
+      setLoading(true);
+      clearError();
+      try {
+        const result = await runAgentTurn(convId, reply);
+        applyTurnResult(result);
+        await refreshMessages(convId);
+      } catch (e) {
+        fail(e instanceof Error ? e.message : "Agent turn failed", attempt);
+        setCandidateReply(reply);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    await attempt();
   };
 
-  const hasAgentMessage = messages.some((m) => m.role === "agent");
   const showHero = !conversationId;
   const step = !persona ? 1 : !conversationId ? 2 : 3;
 
@@ -379,8 +413,18 @@ export default function App() {
 
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 lg:px-8">
         {error && (
-          <div className="animate-fade-up rounded-xl border border-red-500/30 bg-red-950/30 px-4 py-3 text-sm text-red-300">
-            {error}
+          <div className="animate-fade-up flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            <span>{error}</span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={() => void onRetry()}
+                disabled={loading}
+                className="btn-secondary shrink-0 border-red-500/30 py-1.5 text-xs text-red-200"
+              >
+                Try again
+              </button>
+            )}
           </div>
         )}
 
@@ -432,6 +476,7 @@ export default function App() {
               state={conversationState}
               draftMessage={draftMessage}
               finalMessage={finalMessage}
+              interestDelta={interestDelta}
               loading={loading}
             />
           </div>
