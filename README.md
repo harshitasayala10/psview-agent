@@ -1,7 +1,7 @@
 # PSVIEW Agent — Autonomous Candidate Engagement Demo
 
 **Live:** TBD  
-**Repo:** TBD
+**Repo:** https://github.com/harshitasayala10/psview-agent
 
 ## What makes it intelligent, not just an LLM call
 
@@ -57,8 +57,3 @@ Root directory: `frontend`
 Environment variables:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-
-## Build plan
-
-- [BUILD_PLAN.md](BUILD_PLAN.md) — phase progress tracker
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) — full 24h implementation plan (phases 0–8)
